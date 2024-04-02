@@ -11,6 +11,7 @@ import { FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname } from 'path';
 import * as fs from 'fs';
+import { GetVouchersInfoConfig } from '../billings/dto/get-last-vouchers.dto';
 
 @Controller('utils')
 export class UtilsController {
@@ -19,16 +20,6 @@ export class UtilsController {
   @Post('sendWhatsappFile')
   async sendWhatsappFile(@Body() body: { number: string }) {
     return await this.utilsService.sendWhatsappFile(body);
-  }
-
-  @Post('createInvoice')
-  async createInvoice() {
-    return await this.utilsService.createInvoice();
-  }
-
-  @Get('getInvoices')
-  async getInvoices(@Body() body: { taxId: number }) {
-    return await this.utilsService.getLastInvoices(+body.taxId);
   }
 
   @Post('liquidacionPrimariaGranos')

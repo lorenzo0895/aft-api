@@ -5,26 +5,21 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Cheque } from 'src/cheques/entities/cheque.entity';
-import { Day } from 'src/days/entities/day.entity';
 import { DataSource, DeepPartial, Repository } from 'typeorm';
 import { CreateReceiptDto } from './dto/create-receipt.dto';
 import { UpdateReceiptDto } from './dto/update-receipt.dto';
 import { Receipt } from './entities/receipt.entity';
 import { UpdateReceiptDescriptionDto } from './dto/update-receipt-description.dto';
 import { ConceptItem } from 'src/concept-items/entities/concept.entity';
-import { ChequesService } from 'src/cheques/cheques.service';
 
 @Injectable()
 export class ReceiptsService {
   constructor(
     @InjectRepository(Receipt)
     private receiptRepository: Repository<Receipt>,
-    @InjectRepository(Cheque)
-    private chequeRepository: Repository<Cheque>,
     @InjectRepository(ConceptItem)
     private conceptItemRepository: Repository<ConceptItem>,
     private dataSource: DataSource,
-    private chequesService: ChequesService,
   ) {}
 
   async findLast(): Promise<Receipt> {
@@ -170,10 +165,13 @@ export class ReceiptsService {
   }
 
   async xubio(start: Date, end: Date) {
-    return await this.conceptItemRepository
+    const array = await this.conceptItemRepository
       .createQueryBuilder('ci')
       .select([
         'r.number as number',
+        'r.id as id',
+        'r.isActive as isActive',
+        'r.isCancelled as isCancelled',
         'ROUND(SUM(ci.amount), 2) as amount',
         'cl.name as name',
         'cl.surname as surname',
@@ -193,6 +191,14 @@ export class ReceiptsService {
         end: end,
       })
       .getRawMany();
+    
+    array.forEach((a) => {
+      a.isActive = Boolean(a.isActive);
+      a.isCancelled = Boolean(a.isCancelled);
+      a.amount = Number(a.amount);
+    })
+    
+    return array;
   }
 
   async update(id: number, updateReceiptDto: UpdateReceiptDto) {
