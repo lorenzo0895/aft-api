@@ -31,6 +31,18 @@ export class ReceiptsController {
     return this.receiptsService.findAll(start, end, client, take);
   }
 
+  @Get()
+  @ApiOkResponse({ type: ReceiptDto, isArray: true })
+  findPage(
+    @Query('start') start: Date,
+    @Query('end') end: Date,
+    @Query('client') client: number,
+    @Query('take') take: number,
+    @Query('page') page: number,
+  ) {
+    return this.receiptsService.findPage(start, end, client, take ? +take : 10, page ? +page : 1);
+  }
+
   @Get(':id')
   @ApiOkResponse({ type: ReceiptDto })
   findOne(@Param('id') id: string) {

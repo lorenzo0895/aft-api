@@ -11,6 +11,7 @@ import { UpdateReceiptDto } from './dto/update-receipt.dto';
 import { Receipt } from './entities/receipt.entity';
 import { UpdateReceiptDescriptionDto } from './dto/update-receipt-description.dto';
 import { ConceptItem } from 'src/concept-items/entities/concept.entity';
+import { Paginator } from 'src/shared/constants/classes/paginator.class';
 
 @Injectable()
 export class ReceiptsService {
@@ -99,6 +100,36 @@ export class ReceiptsService {
       .getMany();
   }
 
+  async findPage(
+    start: Date,
+    end: Date,
+    client: number,
+    take: number,
+    page: number,
+  ): Promise<Paginator<Receipt>> {
+    let whereString = '';
+    if (start) whereString += 'd.day >= :start AND d.day <= :end';
+    if (start && client) whereString += ' AND c.id = :client';
+    if (!start && client) whereString += 'c.id = :client';
+    const [receipts, count] = await this.receiptRepository
+      .createQueryBuilder('r')
+      .leftJoinAndSelect('r.day', 'd')
+      .leftJoinAndSelect('r.cancelReceipt', 'cr')
+      .leftJoinAndSelect('r.client', 'c')
+      .leftJoinAndSelect('r.cheques', 'ch')
+      .leftJoinAndSelect('r.cancelCheques', 'ch2')
+      .where(whereString, {
+        start: start,
+        end: end,
+        client: client,
+      })
+      .orderBy('r.number', 'DESC')
+      .take(take)
+      .skip((page - 1) * take)
+      .getManyAndCount();
+    return new Paginator(receipts, page, count);
+  }
+
   async findOne(id: number) {
     // const receipt = await this.receiptRepository.findOne({
     //   where: { id: id },
@@ -131,8 +162,8 @@ export class ReceiptsService {
     orderBy: 'receipt' | 'client',
     client: number,
   ) {
-    const filterByClient = client ? ' AND r.client = :client' : '';
-    return await this.receiptRepository
+    const filterByClient = client ? ' AND r.client.id = :client' : '';
+    const result = await this.receiptRepository
       .createQueryBuilder('r')
       .select([
         'r.id',
@@ -160,8 +191,19 @@ export class ReceiptsService {
         end: end,
         client: client,
       })
-      .orderBy(orderBy === 'client' ? 'client.surname' : 'r.number', 'ASC')
       .getMany();
+
+    if (orderBy === 'client') {
+      return result.sort((a, b) => {
+        const nameA = (a.client.surname ? a.client.surname + ', ' + a.client.name : a.client.name).toLowerCase();
+        const nameB = (b.client.surname ? b.client.surname + ', ' + b.client.name : b.client.name).toLowerCase();
+        if (nameA < nameB) return -1;
+        if (nameA > nameB) return 1;
+        return 0;
+      });
+    } else {
+      return result.sort((a, b) => a.number - b.number);
+    }
   }
 
   async xubio(start: Date, end: Date) {
